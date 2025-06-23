@@ -3,6 +3,6 @@
 
 
 * [flask](flask/): deploy a flask server with self-signed certificate, and redirect support
-* [jumpy](jumpy/): deploy a series of jump boxes
+* [jumps](jumps/): deploy a series of jump boxes
 * [wireguard](wireguard/): deploy a wireguard VPN endpoint, and demo some mechanisms to consume it, client-side (via explicit routing, via docker)
 
