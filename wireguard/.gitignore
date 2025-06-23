@@ -1,0 +1,16 @@
+terraform.tfvars
+terraform.tfstate
+terraform.tfstate.backup
+server.crt
+server.csr
+server.key
+server.pem
+.terraform.*
+.terraform/*
+server.conf
+peer.conf
+client.conf 
+client.privatekey
+client.publickey
+server.privatekey
+server.publickey

@@ -6,6 +6,7 @@ It's meant to be ephemeral - stand it up as needed, tear it down when you're don
 
 The server will listen on ports `80` and `443` for HTTP and HTTPS respectively.  HTTPS is served under a self-signed certificate.
 
+This version uses flask, and will support a redirect loop https://slcyber.io/assetnote-security-research-center/novel-ssrf-technique-involving-http-redirect-loops/
 
 # Prerequisites
 
