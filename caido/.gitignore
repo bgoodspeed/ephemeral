@@ -1,0 +1,9 @@
+terraform.tfvars
+terraform.tfstate
+terraform.tfstate.backup
+.terraform/*
+.terraform.*
+server.crt
+server.csr
+server.key
+server.pem
