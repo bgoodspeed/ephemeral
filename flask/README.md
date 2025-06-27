@@ -187,9 +187,9 @@ You can serve your payloads as needed:
 
 ```
 $ echo "hi mom" > /tmp/foo
-$ scp /tmp/foo root@`./getip.sh`:/shared
+$ scp -i id_rsa /tmp/foo root@`./getip.sh`:/scripts/static
 foo                                                     100%    7     0.2KB/s   00:00
-$ curl http://`./getip.sh`/foo
+$ curl http://`./getip.sh`/static/foo
 hi mom
 ```
 
@@ -198,7 +198,7 @@ hi mom
 You'll need `sshfs` installed, but you won't need root permissions to mount the actual share. 
 
 ```
-$ sshfs root@`./getip.sh`:/shared ~/shared -o reconnect
+$ sshfs root@`./getip.sh`:/scripts/static ~/shared -o reconnect
 ```
 
 Don't forget to unmount before you destroy your instance, as FUSE can be a little fussy.

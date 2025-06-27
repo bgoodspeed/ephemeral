@@ -36,13 +36,12 @@ data "template_file" "userdata_provision_listener" {
 runcmd:
   - apt update 
   - apt install -y python3-flask
-  - mkdir /shared
-  - mkdir /scripts
+  - mkdir -p /scripts/static
   - echo ${base64encode(file("${path.module}/server.pem"))} | base64 --decode > /scripts/server.pem 
   - echo ${base64encode(file("${path.module}/https_server.py"))} | base64 --decode > /scripts/https_server.py 
   - echo ${base64encode(file("${path.module}/http_server.py"))} | base64 --decode > /scripts/http_server.py 
-  - cd /shared && nohup python3 /scripts/https_server.py &
-  - cd /shared && nohup python3 /scripts/http_server.py &
+  - nohup python3 /scripts/https_server.py &
+  - nohup python3 /scripts/http_server.py &
 EOF
 }
 
