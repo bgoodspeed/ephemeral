@@ -23,11 +23,6 @@ Add your digitalocean token:
 do_token = "dop_v1_a2c....71"
 ```
 
-Optionally set the path to your private key file (generate a new one if you want), otherwise it'll try to use `~/.ssh/id_rsa`: 
-
-```
-ssh_keyfile = "~/.ssh/id_ed25519"
-```
 
 Install the terraform providers:
 
@@ -162,7 +157,7 @@ When you're done, delete the resources you created with `terraform destroy`.
 ## Login 
 
 ```
-$ ssh -l root `./getip.sh`
+$ ssh -i id_rsa -l root `./getip.sh`
 ```
 
 ## Monitoring  
