@@ -8,22 +8,17 @@ terraform {
       source  = "hashicorp/tls"
       version = "~> 4.0"
     }
-
   }
-
 }
 
-# Set the variable values in *.tfvars file
-# or using -var="do_token=..." CLI option
+# Set the variable values in *.tfvars file, or using -var="do_token=..." CLI option
 variable "do_token" {}
 variable "web_username" {}
 variable "web_password" {}
 
-# Configure the DigitalOcean Provider
 provider "digitalocean" {
   token = var.do_token
 }
-
 
 module "ssh_keygen" {
   source = "../modules/ssh_keygen"
@@ -33,12 +28,12 @@ module "ssh_keygen" {
 }
 
 resource "digitalocean_ssh_key" "default" {
-  name       = "from-tls-key"
+  name       = "ephemeral-mailserver-key"
   public_key = module.ssh_keygen.public_key
 }
 
 
-data "template_file" "userdata_provision_mailserver" {
+data "template_file" "provisioner_script" {
   template = <<EOF
 #cloud-config
 runcmd:
@@ -54,9 +49,10 @@ resource "digitalocean_droplet" "mailserver" {
   name     = "mailserver-1"
   region   = "nyc3"
   size     = "s-1vcpu-1gb"
+  tags = ["ephemeral", "mailserver"]
   ssh_keys = [digitalocean_ssh_key.default.id]
 
-  user_data = data.template_file.userdata_provision_mailserver.rendered
+  user_data = data.template_file.provisioner_script.rendered
 }
 
 output "instance_ip_address" {
