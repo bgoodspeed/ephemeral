@@ -11,26 +11,25 @@ terraform {
 # or using -var="do_token=..." CLI option
 variable "do_token" {}
 
-variable "ssh_keyfile" {
-  description = "The path to the SSH keyfile"
-  type        = string
-  default     = "~/.ssh/id_rsa"
-}
-
-locals {
-    ssh_keyfile_public = "${var.ssh_keyfile}.pub"
-}
-
 
 # Configure the DigitalOcean Provider
 provider "digitalocean" {
   token = var.do_token
 }
 
-resource "digitalocean_ssh_key" "default" {
-  name       = "ssh key for access to droplet"
-  public_key = file(local.ssh_keyfile_public)
+module "ssh_keygen" {
+  source = "../modules/ssh_keygen"
+  providers = {
+    digitalocean = digitalocean
+  }
 }
+
+resource "digitalocean_ssh_key" "default" {
+  name       = "ephemeral-wireguard-key"
+  public_key = module.ssh_keygen.public_key
+}
+
+
 
 data "template_file" "userdata_provision_wireguard" {
   template = <<EOF
@@ -52,7 +51,8 @@ resource "digitalocean_droplet" "wireguard" {
   name     = "wireguard-1"
   region   = "nyc3"
   size     = "s-1vcpu-1gb"
-  ssh_keys = [digitalocean_ssh_key.default.fingerprint]
+  tags	   = ["ephemeral", "wireguard"]
+  ssh_keys = [digitalocean_ssh_key.default.id]
 
   user_data = data.template_file.userdata_provision_wireguard.rendered
 }
