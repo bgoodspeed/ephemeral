@@ -28,7 +28,7 @@ provider "digitalocean" {
 }
 
 resource "digitalocean_ssh_key" "default" {
-  name       = "ssh key for access to droplet"
+  name       = "default ssh key"
   public_key = file(local.ssh_keyfile_public)
 }
 
@@ -38,6 +38,7 @@ resource "digitalocean_droplet" "jump1" {
   name     = "jump-1"
   region   = "nyc3"
   size     = "s-1vcpu-1gb"
+  tags     = ["ephemeral", "jumps"]
   ssh_keys = [digitalocean_ssh_key.default.fingerprint]
 }
 
@@ -46,6 +47,7 @@ resource "digitalocean_droplet" "jump2" {
   name     = "jump-2"
   region   = "nyc3"
   size     = "s-1vcpu-1gb"
+  tags     = ["ephemeral", "jumps"]
   ssh_keys = [digitalocean_ssh_key.default.fingerprint]
 }
 resource "digitalocean_droplet" "jump3" {
@@ -53,6 +55,7 @@ resource "digitalocean_droplet" "jump3" {
   name     = "jump-3"
   region   = "nyc3"
   size     = "s-1vcpu-1gb"
+  tags     = ["ephemeral", "jumps"]
   ssh_keys = [digitalocean_ssh_key.default.fingerprint]
 }
 output "instance_ip_addresses" {
