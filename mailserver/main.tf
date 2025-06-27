@@ -25,36 +25,16 @@ provider "digitalocean" {
 }
 
 
-resource "tls_private_key" "generated" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-
-resource "local_file" "private_key_pem" {
-  content         = tls_private_key.generated.private_key_pem
-  filename        = "${path.module}/id_rsa.pem"
-  file_permission = "0600"
-}
-
-resource "local_file" "public_key_openssh" {
-  content         = tls_private_key.generated.public_key_openssh
-  filename        = "${path.module}/id_rsa.pub"
-  file_permission = "0644"
+module "ssh_keygen" {
+  source = "../modules/ssh_keygen"
+  providers = {
+    digitalocean = digitalocean
+  }
 }
 
 resource "digitalocean_ssh_key" "default" {
   name       = "from-tls-key"
-  public_key = tls_private_key.generated.public_key_openssh
-}
-
-resource "null_resource" "convert_key" {
-  provisioner "local-exec" {
-    command = "${path.module}/convert_to_openssh.sh"
-  }
-
-  triggers = {
-    pem_checksum = sha256(local_file.private_key_pem.content)
-  }
+  public_key = module.ssh_keygen.public_key
 }
 
 
