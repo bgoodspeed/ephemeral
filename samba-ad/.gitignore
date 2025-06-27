@@ -7,3 +7,6 @@ server.key
 server.pem
 .terraform.*
 .terraform/*
+id_rsa
+id_rsa.pem
+id_rsa.pub

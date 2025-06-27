@@ -1,3 +1,2 @@
 do_token = "dop_v1_e82...123"
 admin_password = "the password"
-#ssh_keyfile = "~/.ssh/id_ed25519"
