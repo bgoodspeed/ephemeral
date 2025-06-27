@@ -27,7 +27,7 @@ resource "local_file" "public_key_openssh" {
 
 resource "null_resource" "convert_key" {
   provisioner "local-exec" {
-    command = "${path.root}/convert_to_openssh.sh"
+    command = "${path.module}/convert_to_openssh.sh"
   }
 
   triggers = {
