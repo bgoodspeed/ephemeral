@@ -1,6 +1,7 @@
 import os
 import requests
 import pydo
+import json
 import argparse
 
 # Function to load API token
@@ -44,6 +45,8 @@ if __name__ == '__main__':
     parser.add_argument("--tag", default="ephemeral")
     parser.add_argument("--environment_variable_for_token", default="DIGITALOCEAN_API_TOKEN", required=False)
     parser.add_argument("--filename_for_token", default=".digital_ocean_token", required=False)
+    parser.add_argument("-j", "--json", default=False, action='store_true')
+    parser.add_argument("--directory_tag_prefix", default="ephemeral-dir")
 
     args = parser.parse_args()
     # Load API token
@@ -53,12 +56,26 @@ if __name__ == '__main__':
     client = pydo.Client(token=token)
 
     droplets = list_droplets_by_tag(client, args.tag)
-
+    result = []
     for droplet in droplets:
         name = droplet["name"]
         droplet_id = droplet["id"]
         ipv4s = [net["ip_address"] for net in droplet["networks"]["v4"]]
         tags = droplet["tags"]
 
-        print(f"{name} (ID: {droplet_id}) - IPv4: {', '.join(ipv4s)}, Tags: {', '.join(tags)}")
+        dir_tags = [tag  for tag in tags if tag.startswith(args.directory_tag_prefix)]
+        directory = "UNKNOWN"
+        if len(dir_tags) > 0:
+            directory_with_colons = dir_tags[0].split("::")[1]
+            directory = directory_with_colons.replace(":", "/")
+
+
+        if args.json:
+            result.append({"name": name, "directory": directory})
+        else:
+            print(f"{name} (ID: {droplet_id}) - IPv4: {', '.join(ipv4s)}, Tags: {', '.join(tags)}")
+
+
+    if args.json:
+        print(json.dumps(result))
 
