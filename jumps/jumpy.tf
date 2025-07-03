@@ -26,6 +26,10 @@ locals {
 provider "digitalocean" {
   token = var.do_token
 }
+locals {
+  cleaned_path = replace(path.cwd, "/", ":")
+  working_dir_tag = "ephemeral-dir::${local.cleaned_path}"
+}
 
 resource "digitalocean_ssh_key" "default" {
   name       = "default ssh key"
@@ -38,7 +42,7 @@ resource "digitalocean_droplet" "jump1" {
   name     = "jump-1"
   region   = "nyc3"
   size     = "s-1vcpu-1gb"
-  tags     = ["ephemeral", "jumps"]
+  tags     = ["ephemeral", "jumps", local.working_dir_tag]
   ssh_keys = [digitalocean_ssh_key.default.fingerprint]
 }
 
@@ -47,7 +51,7 @@ resource "digitalocean_droplet" "jump2" {
   name     = "jump-2"
   region   = "nyc3"
   size     = "s-1vcpu-1gb"
-  tags     = ["ephemeral", "jumps"]
+  tags     = ["ephemeral", "jumps", local.working_dir_tag]
   ssh_keys = [digitalocean_ssh_key.default.fingerprint]
 }
 resource "digitalocean_droplet" "jump3" {
@@ -55,7 +59,7 @@ resource "digitalocean_droplet" "jump3" {
   name     = "jump-3"
   region   = "nyc3"
   size     = "s-1vcpu-1gb"
-  tags     = ["ephemeral", "jumps"]
+  tags     = ["ephemeral", "jumps", local.working_dir_tag]
   ssh_keys = [digitalocean_ssh_key.default.fingerprint]
 }
 output "instance_ip_addresses" {

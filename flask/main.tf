@@ -16,6 +16,12 @@ provider "digitalocean" {
   token = var.do_token
 }
 
+locals {
+  cleaned_path = replace(path.cwd, "/", ":")
+  working_dir_tag = "ephemeral-dir::${local.cleaned_path}"
+}
+
+
 module "ssh_keygen" {
   source = "../modules/ssh_keygen"
   providers = {
@@ -51,7 +57,7 @@ resource "digitalocean_droplet" "listener" {
   region   = "nyc3"
   size     = "s-1vcpu-1gb"
   ssh_keys = [digitalocean_ssh_key.default.id]
-  tags     = ["ephemeral", "flask"]
+  tags     = ["ephemeral", "flask", local.working_dir_tag]
 
   user_data = data.template_file.userdata_provision_listener.rendered
 }

@@ -15,6 +15,10 @@ variable "do_token" {}
 provider "digitalocean" {
   token = var.do_token
 }
+locals {
+  cleaned_path = replace(path.cwd, "/", ":")
+  working_dir_tag = "ephemeral-dir::${local.cleaned_path}"
+}
 
 module "ssh_keygen" {
   source = "../modules/ssh_keygen"
@@ -46,7 +50,7 @@ resource "digitalocean_droplet" "caido" {
   name     = "caido-1"
   region   = "nyc3"
   size     = "s-1vcpu-1gb"
-  tags     = ["ephemeral", "caido"]
+  tags     = ["ephemeral", "caido", local.working_dir_tag]
   ssh_keys = [digitalocean_ssh_key.default.id]
 
   user_data = data.template_file.userdata_provision_caido.rendered

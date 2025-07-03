@@ -58,6 +58,7 @@ if __name__ == '__main__':
         name = droplet["name"]
         droplet_id = droplet["id"]
         ipv4s = [net["ip_address"] for net in droplet["networks"]["v4"]]
+        tags = droplet["tags"]
 
-        print(f"{name} (ID: {droplet_id}) - IPv4: {', '.join(ipv4s)}")
+        print(f"{name} (ID: {droplet_id}) - IPv4: {', '.join(ipv4s)}, Tags: {', '.join(tags)}")
 

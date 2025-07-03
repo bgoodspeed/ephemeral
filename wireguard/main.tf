@@ -17,6 +17,11 @@ provider "digitalocean" {
   token = var.do_token
 }
 
+locals {
+  cleaned_path = replace(path.cwd, "/", ":")
+  working_dir_tag = "ephemeral-dir::${local.cleaned_path}"
+}
+
 module "ssh_keygen" {
   source = "../modules/ssh_keygen"
   providers = {
@@ -51,7 +56,7 @@ resource "digitalocean_droplet" "wireguard" {
   name     = "wireguard-1"
   region   = "nyc3"
   size     = "s-1vcpu-1gb"
-  tags	   = ["ephemeral", "wireguard"]
+  tags	   = ["ephemeral", "wireguard", local.working_dir_tag]
   ssh_keys = [digitalocean_ssh_key.default.id]
 
   user_data = data.template_file.userdata_provision_wireguard.rendered
