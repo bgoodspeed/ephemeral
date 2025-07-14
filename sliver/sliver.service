@@ -1,0 +1,12 @@
+[Unit]
+Description=Sliver C2 Server
+After=network.target
+
+[Service]
+ExecStart=/opt/sliver/sliver-server
+Restart=always
+User=sliver
+
+[Install]
+WantedBy=multi-user.target
+
