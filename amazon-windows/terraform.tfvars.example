@@ -1,0 +1,4 @@
+provisioned_username = "redteam"
+provisioned_password = "<Whatever Password You Want>"
+aws_secret_access_key = "BAO...7M"
+aws_access_key        = "AKIA...MX"
