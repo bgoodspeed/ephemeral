@@ -1,0 +1,14 @@
+terraform.tfvars
+terraform.tfstate
+terraform.tfstate.backup
+server.crt
+server.csr
+server.key
+server.pem
+.terraform.*
+.terraform/*
+id_rsa.pem
+id_rsa
+id_rsa.pem
+id_rsa.pub
+mitm.token
