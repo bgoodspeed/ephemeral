@@ -29,6 +29,9 @@ The following are all based on [digitalocean](https://m.do.co/c/15eb168a4c37) re
 
 # Helper scripts 
 
+It is useful to be keep track of which instances are active (since they are generating costs), the scripts below can help.
+
+## Remote via API
 The script `ephemeral.py` will search digitalocean for droplets with the given tag (the `ephemeral` tag is applied in all of these projects and is the default).
 
 To configure:
@@ -38,3 +41,7 @@ To configure:
 * provide digital ocean API token as environment variable or in a file: `export DIGITALOCEAN_API_TOKEN=...` or `echo "the token" > .digital_ocean_token`
 
 Run with `python ephemeral.py` to list created droplets.
+
+## Local via terraform introspection
+
+The script `ephemeral-local` will search local directories for terraform state files and if they contain digitalocean resources report them.
