@@ -1,6 +1,6 @@
 # Overview
 
-This repo will help you setup your own droplet, you can customize it as needed
+This repo will help you setup a sliver C2 host.  Once provisioned a client config will be copied.
 
 It's meant to be ephemeral - stand it up as needed, tear it down when you're done.
 
@@ -32,7 +32,7 @@ terraform init
 
 # Create your server
 
-To create your listener run `terraform apply`:
+To create your server run `terraform apply`:
 
 ```
 $ terraform plan
@@ -46,12 +46,25 @@ Outputs:
 instance_ip_address = "45.55.47.65"
 ```
 
+
 The cloud-init script that populates the certificate and starts the web listeners can take a little while after your IP is returned, usually no more than 2 minutes.
 
 
 You can access it with `ssh`
 ```
-$ ssh -i id_rsa -l root 45.55.47.65
+$ ssh -i id_rsa.pem -l root 45.55.47.65
+```
+
+The client can be configured with:
+
+```
+$ sliver-client import redteam.cfg
+```
+
+Then you're good to go:
+
+```
+$ sliver-client
 ```
 
 # Convenience scripts
