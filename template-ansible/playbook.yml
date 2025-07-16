@@ -1,0 +1,22 @@
+---
+- name: Provision DigitalOcean Droplet
+  hosts: all
+  become: yes
+  tasks:
+    - name: Ensure latest apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install common packages
+      apt:
+        name:
+          - curl
+          - htop
+          - git
+        state: present
+
+    - name: Print debug information
+      debug:
+        msg: "Provisioning complete on {{ inventory_hostname }}"
+

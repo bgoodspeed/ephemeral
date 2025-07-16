@@ -60,3 +60,7 @@ output "private_key_pem" {
   value = tls_private_key.generated.private_key_pem 
   sensitive = true 
 }
+
+output "private_key_pem_path" {
+  value = "${path.root}/id_rsa.pem"
+}
