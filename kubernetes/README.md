@@ -89,11 +89,3 @@ There are a couple helper scripts to facilitate this:
 When you're done, delete the resources you created with `terraform destroy`.
 
 
-# Examples
-
-## Login 
-
-```
-$ ssh -i id_rsa -l root `./getip.sh`
-```
-
