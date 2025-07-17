@@ -5,13 +5,18 @@
 
 The following are all based on [digitalocean](https://m.do.co/c/15eb168a4c37) resources:
 * [template](template/): a starting point for an arbitrary droplet
-* [flask](flask/): deploy a flask server with self-signed certificate, and redirect support
+* [template-ansible](template-ansible/): a starting point for an arbitrary droplet with ansible provisioning support
+* [flask](flask/): deploy a web listener/payload server  with self-signed certificate, and redirect support
+* [certbot](certbot/): deploy a web listener/payload server with a valid SSL certificate, requires a domain managed by digitalocean
 * [jumps](jumps/): deploy a series of jump boxes
 * [wireguard](wireguard/): deploy a wireguard VPN endpoint, and demo some mechanisms to consume it, client-side (via explicit routing, via docker)
 * [caido](caido/): deploy a caido proxy endpoint 
 * [samba ad](samba-ad/): deploy a samba AD instance with a given realm/domain
 * [maildev](mailserver/): deploy a maildev instance with webui to access received emails
 * [sliver](sliver/): deploy a sliver C2 instance, and builds a client configuration for its use
+* [wiredoor](wiredoor/): deploy a [wiredoor](https://www.wiredoor.net) server and configured subdomains to expose internal services via wireguard tunnels.  Requires a domain managed by digitalocean.
+* [wiredoor-iponly](wiredoor-iponly/): deploy a [wiredoor](https://www.wiredoor.net) server to expose internal services via wireguard tunnels (no domain dependency)
+* [kubernetes](kubernetes/): deploy a 2 node kubernetes cluster. no load balancer or other cloud-provider dependencies
 
 ## Vultr
 
