@@ -17,6 +17,8 @@ The following are all based on [digitalocean](https://m.do.co/c/15eb168a4c37) re
 * [wiredoor](wiredoor/): deploy a [wiredoor](https://www.wiredoor.net) server and configured subdomains to expose internal services via wireguard tunnels.  Requires a domain managed by digitalocean.
 * [wiredoor-iponly](wiredoor-iponly/): deploy a [wiredoor](https://www.wiredoor.net) server to expose internal services via wireguard tunnels (no domain dependency)
 * [kubernetes](kubernetes/): deploy a 2 node kubernetes cluster. no load balancer or other cloud-provider dependencies
+* [postfix](postfix/): deploy a postfix mailserver.  along with some tools to help check for mail spoofing
+* [reconFTW](reconftw/): deploy a reconFTW instance (via docker), automatically kicks off a scan against a provided target
 
 ## Vultr
 
