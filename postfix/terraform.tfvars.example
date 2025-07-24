@@ -1,0 +1,3 @@
+do_token = "dop_v1_e82...123"
+spoofed_to = "your@email.com"
+spoofed_from = "target@vulnerable.com"
