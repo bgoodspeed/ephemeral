@@ -1,0 +1,1 @@
+keycloak-26.3.2/bin/kc.sh start-dev --https-certificate-file=/etc/letsencrypt/live/AUTOMATICALLYREPLACED/fullchain.pem --https-certificate-key-file=/etc/letsencrypt/live/AUTOMATICALLYREPLACED/privkey.pem --hostname=https://AUTOMATICALLYREPLACED:8443 --hostname-admin=https://AUTOMATICALLYREPLACED:8443

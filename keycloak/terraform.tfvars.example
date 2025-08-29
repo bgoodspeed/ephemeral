@@ -1,0 +1,3 @@
+do_token = "dop_v1_e82...123"
+managed_domain = "example.org"
+certbot_email = "you@example.org"
