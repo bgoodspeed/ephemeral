@@ -47,7 +47,7 @@ EOF
 }
 
 resource "digitalocean_droplet" "service" {
-  image    = "ubuntu-24-10-x64"
+  image    = "ubuntu-25-04-x64"
   name     = "service-1"
   region   = "nyc3"
   size     = "s-1vcpu-1gb"
