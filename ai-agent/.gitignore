@@ -1,0 +1,7 @@
+config.json
+state.json
+agents.json
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+*.tfvars

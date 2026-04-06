@@ -1,0 +1,8 @@
+{
+  "do_token": "dop_v1_xxxx",
+  "agent_name": "my-agent",
+  "model_uuid": "3a25f5a8-5e7d-11f0-bf8f-4e013e2ddde4",
+  "region": "tor1",
+  "description": "AI agent",
+  "system_prompt": "You are a helpful assistant."
+}
