@@ -45,10 +45,17 @@ doctl gradient models list
 python provision.py create
 ```
 
+or, to front the traffic through a generic droplet proxy:
+
+```bash 
+python provision.py create --proxy
+```
+
+
 This creates a DO project, workspace, and agent, then writes:
-- `state.json` — resource IDs needed for cleanup
-- `agents.json` — endpoint registry consumed by the CLI
-- `pricing.json` — per-token rates fetched from the DO models API (used for cost display)
+- `state.json`  resource IDs needed for cleanup
+- `agents.json`  endpoint registry consumed by the CLI
+- `pricing.json`  per-token rates fetched from the DO models API (used for cost display)
 
 
 ## Usage
@@ -130,4 +137,4 @@ Session files are stored at `~/.local/share/doagent/sessions/` (mode 0600).
 python provision.py destroy
 ```
 
-Deletes the agent, workspace, and project in the right order, then removes `state.json` and `agents.json`.
+Deletes the agent, workspace, and project in the right order, then removes `state.json`, `pricing.json`, and `agents.json`.

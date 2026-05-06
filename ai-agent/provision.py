@@ -7,18 +7,59 @@ Usage:
     python provision.py destroy
 """
 
+import argparse
+import datetime
 import json
 import os
+import secrets
+import socket
+import subprocess
 import sys
 import time
-import datetime
+
 import requests
 
 CONFIG_FILE = "config.json"
 STATE_FILE = "state.json"
 AGENTS_FILE = "agents.json"
 PRICING_FILE = "pricing.json"
+SSH_KEY_FILE  = "proxy_ssh_key"
 BASE = "https://api.digitalocean.com/v2"
+DROPLET_SIZE  = "s-1vcpu-512mb-10gb"
+DROPLET_IMAGE = "ubuntu-24-04-x64"
+PROXY_SCRIPT = """\
+import os, requests
+from flask import Flask, request, Response, stream_with_context
+
+app = Flask(__name__)
+UPSTREAM_URL = os.environ["UPSTREAM_URL"]
+UPSTREAM_KEY = os.environ["UPSTREAM_KEY"]
+PROXY_KEY    = os.environ["PROXY_KEY"]
+
+
+@app.route("/api/v1/chat/completions", methods=["POST"])
+def proxy():
+    if request.headers.get("Authorization") != f"Bearer {PROXY_KEY}":
+        return {"error": "unauthorized"}, 401
+    r = requests.post(
+        f"{UPSTREAM_URL}/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {UPSTREAM_KEY}",
+            "Content-Type": "application/json",
+        },
+        json=request.get_json(),
+        stream=True,
+        timeout=120,
+    )
+    return Response(
+        stream_with_context(r.iter_content(chunk_size=None)),
+        content_type=r.headers.get("Content-Type", "text/event-stream"),
+        status=r.status_code,
+    )
+
+
+app.run(host="0.0.0.0", port=443, ssl_context=("/opt/proxy.crt", "/opt/proxy.key"))
+"""
 
 
 def load_config():
@@ -98,7 +139,111 @@ def update_pricing_file(model_uuid, model_name, input_per_token, output_per_toke
         json.dump(existing, f, indent=2)
 
 
-def create(config):
+def create_proxy(do, state, config):
+    proxy_key = secrets.token_urlsafe(32)
+
+    # Generate a fresh ed25519 key pair for SSH access to the droplet
+    for f in [SSH_KEY_FILE, SSH_KEY_FILE + ".pub"]:
+        if os.path.exists(f):
+            os.remove(f)
+    subprocess.run(
+        ["ssh-keygen", "-t", "ed25519", "-f", SSH_KEY_FILE, "-N", "",
+         "-C", f"{state['agent_name']}-proxy"],
+        check=True, capture_output=True,
+    )
+    os.chmod(SSH_KEY_FILE, 0o600)
+    with open(SSH_KEY_FILE + ".pub") as f:
+        public_key = f.read().strip()
+
+    print("uploading SSH key...")
+    key_resp = do.post("account/keys", {
+        "name": f"{state['agent_name']}-proxy-key",
+        "public_key": public_key,
+    })
+    ssh_key_id = key_resp["ssh_key"]["id"]
+    state["proxy_ssh_key_id"] = ssh_key_id
+    save_state(state)
+    print(f"  id: {ssh_key_id}")
+
+    svc = "\n".join([
+        "[Unit]",
+        "Description=Agent Proxy",
+        "After=network.target",
+        "[Service]",
+        "ExecStart=/usr/bin/python3 /opt/proxy.py",
+        f'Environment="UPSTREAM_URL={state["agent_url"]}"',
+        f'Environment="UPSTREAM_KEY={state["agent_api_key"]}"',
+        f'Environment="PROXY_KEY={proxy_key}"',
+        "Restart=always",
+        "[Install]",
+        "WantedBy=multi-user.target",
+    ])
+
+    user_data = "\n".join([
+        "#!/bin/bash",
+        "apt-get update -q && apt-get install -y -q python3-flask python3-requests openssl",
+        "openssl req -x509 -newkey rsa:4096 -keyout /opt/proxy.key \\",
+        "  -out /opt/proxy.crt -days 3650 -nodes -subj '/CN=proxy' 2>/dev/null",
+        "cat > /opt/proxy.py << 'PYEOF'",
+        PROXY_SCRIPT,
+        "PYEOF",
+        "cat > /etc/systemd/system/proxy.service << 'SVCEOF'",
+        svc,
+        "SVCEOF",
+        "systemctl daemon-reload && systemctl enable proxy && systemctl start proxy",
+    ])
+
+    print("creating proxy droplet...")
+    resp = do.post("droplets", {
+        "name": f"{state['agent_name']}-proxy",
+        "region": config.get("region", "tor1"),
+        "size": DROPLET_SIZE,
+        "image": DROPLET_IMAGE,
+        "user_data": user_data,
+        "ssh_keys": [ssh_key_id],
+    })
+    droplet_id = resp["droplet"]["id"]
+    state["droplet_id"] = droplet_id
+    save_state(state)
+    print(f"  id: {droplet_id}")
+
+    proxy_ip = None
+    print("  waiting for IP", end="", flush=True)
+    for _ in range(30):
+        time.sleep(5)
+        print(".", end="", flush=True)
+        d = do.get(f"droplets/{droplet_id}")["droplet"]
+        for net in d.get("networks", {}).get("v4", []):
+            if net["type"] == "public":
+                proxy_ip = net["ip_address"]
+                break
+        if proxy_ip:
+            break
+    if not proxy_ip:
+        raise RuntimeError("timed out waiting for droplet IP")
+    state["proxy_ip"] = proxy_ip
+    state["proxy_api_key"] = proxy_key
+    save_state(state)
+    print(f" {proxy_ip}")
+
+    print("  waiting for proxy service", end="", flush=True)
+    for _ in range(60):
+        time.sleep(5)
+        print(".", end="", flush=True)
+        try:
+            s = socket.create_connection((proxy_ip, 443), timeout=3)
+            s.close()
+            break
+        except OSError:
+            pass
+    else:
+        print(" (timed out — proxy may still be starting)")
+        return proxy_ip, proxy_key
+    print(" ready")
+    return proxy_ip, proxy_key
+
+
+def create(config, use_proxy=False):
     if os.path.exists(STATE_FILE):
         print(f"error: {STATE_FILE} already exists — run 'destroy' first")
         sys.exit(1)
@@ -214,8 +359,22 @@ def create(config):
         json.dump(registry, f, indent=2)
     os.chmod(AGENTS_FILE, 0o600)
 
+    if use_proxy:
+        proxy_ip, proxy_key = create_proxy(do, state, config)
+        with open(AGENTS_FILE) as f:
+            registry = json.load(f)
+        registry["agents"][name]["url"]        = f"https://{proxy_ip}"
+        registry["agents"][name]["api_key"]    = proxy_key
+        registry["agents"][name]["tls_verify"] = False
+        with open(AGENTS_FILE, "w") as f:
+            json.dump(registry, f, indent=2)
+        os.chmod(AGENTS_FILE, 0o600)
+
     print(f"\ndone.")
     print(f"  agent url: {state['agent_url']}")
+    if use_proxy:
+        print(f"  proxy:     https://{state['proxy_ip']}")
+        print(f"  ssh:       ssh -i {SSH_KEY_FILE} root@{state['proxy_ip']}")
     print(f"  state:     {STATE_FILE}")
     print(f"  registry:  {AGENTS_FILE}")
 
@@ -239,6 +398,22 @@ def destroy():
         do.delete(f"gen-ai/workspaces/{state['workspace_uuid']}")
         print("  done")
 
+    if state.get("droplet_id"):
+        print(f"deleting proxy droplet {state['droplet_id']}...")
+        try:
+            do.delete(f"droplets/{state['droplet_id']}")
+            print("  done")
+        except requests.HTTPError as e:
+            print(f"  warning: {e} — delete the droplet manually in the DO console")
+
+    if state.get("proxy_ssh_key_id"):
+        print(f"deleting proxy SSH key {state['proxy_ssh_key_id']}...")
+        try:
+            do.delete(f"account/keys/{state['proxy_ssh_key_id']}")
+            print("  done")
+        except requests.HTTPError as e:
+            print(f"  warning: {e}")
+
     if "project_id" in state:
         print(f"deleting project {state['project_id']}...")
         try:
@@ -247,7 +422,7 @@ def destroy():
         except requests.HTTPError as e:
             print(f"  warning: {e} — delete the project manually in the DO console")
 
-    for path in [STATE_FILE, AGENTS_FILE, PRICING_FILE]:
+    for path in [STATE_FILE, AGENTS_FILE, PRICING_FILE, SSH_KEY_FILE, SSH_KEY_FILE + ".pub"]:
         if os.path.exists(path):
             os.remove(path)
             print(f"removed {path}")
@@ -256,13 +431,16 @@ def destroy():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2 or sys.argv[1] not in ("create", "destroy"):
-        print("usage: python provision.py <create|destroy>")
-        sys.exit(1)
+    ap = argparse.ArgumentParser(
+        prog="provision.py",
+        description="create and destroy DO Gradient AI agent infrastructure",
+    )
+    ap.add_argument("command", choices=["create", "destroy"])
+    ap.add_argument("--proxy", action="store_true",
+                    help="also provision a DigitalOcean droplet as a TLS reverse proxy")
+    args = ap.parse_args()
 
-    cfg = load_config()
-
-    if sys.argv[1] == "create":
-        create(cfg)
+    if args.command == "create":
+        create(load_config(), use_proxy=args.proxy)
     else:
         destroy()

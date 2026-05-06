@@ -95,7 +95,8 @@ def test_stream_ask_writes_tokens(mock_sse_response, monkeypatch, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == "Hello world"
-    assert result == "Hello world"
+    text, usage = result
+    assert text == "Hello world"
 
 
 def test_cmd_ask_tty_header(agents_json_file, mock_sse_response, monkeypatch, capsys):

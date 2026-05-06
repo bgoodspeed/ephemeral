@@ -130,7 +130,7 @@ def test_resume_loads_context(
     # Track messages argument passed to requests.post
     captured_messages = []
 
-    def fake_post(url, headers=None, json=None, stream=False, timeout=None):
+    def fake_post(url, headers=None, json=None, stream=False, timeout=None, verify=True):
         if json and "messages" in json:
             captured_messages.extend(json["messages"])
         mock_sse_response.iter_lines = MagicMock(

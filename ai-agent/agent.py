@@ -172,7 +172,7 @@ def cmd_sessions_rm(args):
     print(f"Deleted session '{args.name}'")
 
 
-def stream_ask(url, api_key, messages, quiet=False):
+def stream_ask(url, api_key, messages, quiet=False, verify=True):
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -184,6 +184,7 @@ def stream_ask(url, api_key, messages, quiet=False):
         json=body,
         stream=True,
         timeout=120,
+        verify=verify,
     )
     resp.raise_for_status()
     full_text = ""
@@ -244,7 +245,7 @@ def cmd_ask(args):
     messages = [{"role": "user", "content": args.prompt}]
 
     try:
-        full_text, usage = stream_ask(agent["url"], agent["api_key"], messages, quiet=args.output_json)
+        full_text, usage = stream_ask(agent["url"], agent["api_key"], messages, quiet=args.output_json, verify=agent.get("tls_verify", True))
     except requests.HTTPError as e:
         print(f"error: API request failed: {e}", file=sys.stderr)
         sys.exit(1)
@@ -306,7 +307,7 @@ def cmd_chat(args):
 
         api_messages = [{"role": m["role"], "content": m["content"]} for m in messages]
         try:
-            full_text, usage = stream_ask(agent["url"], agent["api_key"], api_messages)
+            full_text, usage = stream_ask(agent["url"], agent["api_key"], api_messages, verify=agent.get("tls_verify", True))
         except KeyboardInterrupt:
             messages.pop()
             sys.stdout.write("\n")
