@@ -48,41 +48,81 @@ python provision.py create
 This creates a DO project, workspace, and agent, then writes:
 - `state.json` — resource IDs needed for cleanup
 - `agents.json` — endpoint registry consumed by the CLI
+- `pricing.json` — per-token rates fetched from the DO models API (used for cost display)
 
 
-## Usage 
+## Usage
 
 1-shot:
 
-```bash 
-python agent.py ask -n 'chatbot name' "your 1 shot query"
+```bash
+python agent.py ask "your question"
+python agent.py ask -n my-agent "your question"   # specify agent if you have more than one
 ```
 
-chat:
+After each response, token usage and estimated cost are printed to stderr:
 
-```bash 
-python agent.py chat -n 'chatbot name' 
+```
+[tokens: 141 in / 52 out | $0.000426]
 ```
 
-### Sessions 
+For scripting, `--json` wraps the response in a JSON envelope that includes the `usage` field:
 
-start/resume a chat in a given session name (will be created if missing):
-
-```bash 
-python agent.py chat --session 'session-name'
+```bash
+python agent.py ask --json "your question"
+# {"agent": "my-agent", "content": "...", "usage": {"prompt_tokens": 141, "completion_tokens": 52, "total_tokens": 193}}
 ```
 
-list sessions
+Chat (interactive REPL):
 
-```bash 
-python agent.py sessions ls
+```bash
+python agent.py chat
+python agent.py chat -n my-agent
 ```
 
-delete a session
+### Sessions
 
-```bash 
-python agent.py sessions rm session-name
+Named sessions persist conversation history across invocations.
+
+Start or resume a session:
+
+```bash
+python agent.py chat --session my-session
 ```
+
+List all sessions:
+
+```bash
+python agent.py sessions list
+```
+
+Show token usage and cost breakdown for a session:
+
+```bash
+python agent.py sessions usage my-session
+```
+
+```
+TURN        IN       OUT          COST
+   1       141         2     $0.000251
+   2       148        26     $0.000348
+ ---  --------  --------  ------------
+ TOT       289        28     $0.000599
+```
+
+Delete a session:
+
+```bash
+python agent.py sessions rm my-session
+```
+
+Session files are stored at `~/.local/share/doagent/sessions/` (mode 0600).
+
+
+## Pricing
+
+`pricing.json` is written automatically by `provision.py create`. Per-token rates come from the DO models API and are keyed by `model_uuid`, so multiple agents backed by different models each get their own entry. If `pricing.json` is missing or a model has no pricing data, token counts are still shown but cost is omitted.
+
 
 ## Tear down
 
@@ -91,4 +131,3 @@ python provision.py destroy
 ```
 
 Deletes the agent, workspace, and project in the right order, then removes `state.json` and `agents.json`.
-

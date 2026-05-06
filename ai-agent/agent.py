@@ -19,9 +19,31 @@ from datetime import datetime, timezone
 import requests
 
 AGENTS_FILE = "agents.json"
+PRICING_FILE = "pricing.json"
 IS_TTY = sys.stdout.isatty()
 WARNED_MARKER = pathlib.Path.home() / ".config" / "doagent" / ".warned"
 SESSIONS_DIR = pathlib.Path.home() / ".local" / "share" / "doagent" / "sessions"
+
+
+def load_pricing():
+    if not os.path.exists(PRICING_FILE):
+        return {}
+    with open(PRICING_FILE) as f:
+        return json.load(f).get("models", {})
+
+
+def format_usage(usage, model_uuid, pricing):
+    if not usage:
+        return None
+    inp = usage.get("prompt_tokens", 0)
+    out = usage.get("completion_tokens", 0)
+    model_pricing = pricing.get(model_uuid, {})
+    inp_rate = model_pricing.get("input_per_token")
+    out_rate = model_pricing.get("output_per_token")
+    if inp_rate is not None and out_rate is not None:
+        cost = inp * inp_rate + out * out_rate
+        return f"[tokens: {inp} in / {out} out | ${cost:.6f}]"
+    return f"[tokens: {inp} in / {out} out]"
 
 
 def load_agents():
@@ -155,7 +177,7 @@ def stream_ask(url, api_key, messages, quiet=False):
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
-    body = {"messages": messages, "stream": True}
+    body = {"messages": messages, "stream": True, "stream_options": {"include_usage": True}}
     resp = requests.post(
         f"{url}/api/v1/chat/completions",
         headers=headers,
@@ -165,6 +187,7 @@ def stream_ask(url, api_key, messages, quiet=False):
     )
     resp.raise_for_status()
     full_text = ""
+    usage = None
     for raw_line in resp.iter_lines(chunk_size=1):
         if not raw_line:
             continue
@@ -178,6 +201,8 @@ def stream_ask(url, api_key, messages, quiet=False):
             chunk = json.loads(payload)
         except json.JSONDecodeError:
             continue
+        if chunk.get("usage"):
+            usage = chunk["usage"]
         delta = chunk.get("choices", [{}])[0].get("delta", {})
         token = delta.get("content")
         if token:
@@ -185,7 +210,7 @@ def stream_ask(url, api_key, messages, quiet=False):
             if not quiet:
                 sys.stdout.write(token)
                 sys.stdout.flush()
-    return full_text
+    return full_text, usage
 
 
 def cmd_list(args):
@@ -219,7 +244,7 @@ def cmd_ask(args):
     messages = [{"role": "user", "content": args.prompt}]
 
     try:
-        full_text = stream_ask(agent["url"], agent["api_key"], messages, quiet=args.output_json)
+        full_text, usage = stream_ask(agent["url"], agent["api_key"], messages, quiet=args.output_json)
     except requests.HTTPError as e:
         print(f"error: API request failed: {e}", file=sys.stderr)
         sys.exit(1)
@@ -231,10 +256,17 @@ def cmd_ask(args):
         sys.exit(1)
 
     if args.output_json:
-        print(json.dumps({"agent": agent_name, "content": full_text}))
-    elif IS_TTY:
-        sys.stdout.write("\n")
-        sys.stdout.flush()
+        out = {"agent": agent_name, "content": full_text}
+        if usage:
+            out["usage"] = usage
+        print(json.dumps(out))
+    else:
+        if IS_TTY:
+            sys.stdout.write("\n")
+            sys.stdout.flush()
+        usage_line = format_usage(usage, agent["model_uuid"], load_pricing())
+        if usage_line:
+            print(usage_line, file=sys.stderr)
 
 
 def cmd_chat(args):
@@ -272,8 +304,9 @@ def cmd_chat(args):
 
         messages.append({"role": "user", "content": user_input})
 
+        api_messages = [{"role": m["role"], "content": m["content"]} for m in messages]
         try:
-            full_text = stream_ask(agent["url"], agent["api_key"], messages)
+            full_text, usage = stream_ask(agent["url"], agent["api_key"], api_messages)
         except KeyboardInterrupt:
             messages.pop()
             sys.stdout.write("\n")
@@ -287,10 +320,66 @@ def cmd_chat(args):
         sys.stdout.write("\n")
         sys.stdout.flush()
 
-        messages.append({"role": "assistant", "content": full_text})
+        usage_line = format_usage(usage, agent["model_uuid"], load_pricing())
+        if usage_line:
+            print(usage_line, file=sys.stderr)
+
+        assistant_msg = {"role": "assistant", "content": full_text}
+        if usage:
+            assistant_msg["usage"] = usage
+        messages.append(assistant_msg)
 
         if session_path:
             save_session(session_path, agent_name, messages, created_iso)
+
+
+def cmd_sessions_usage(args):
+    path = SESSIONS_DIR / f"{args.name}.json"
+    if not path.exists():
+        print(f"error: session '{args.name}' not found", file=sys.stderr)
+        sys.exit(1)
+    with path.open() as f:
+        data = json.load(f)
+
+    registry = load_agents()
+    agent_name = data.get("agent", "")
+    model_uuid = registry.get("agents", {}).get(agent_name, {}).get("model_uuid", "")
+    pricing = load_pricing()
+
+    total_in = total_out = 0
+    turn = 0
+    print(f"{'TURN':>4}  {'IN':>8}  {'OUT':>8}  {'COST':>12}")
+    for msg in data.get("messages", []):
+        if msg.get("role") != "assistant":
+            continue
+        usage = msg.get("usage")
+        if not usage:
+            continue
+        turn += 1
+        inp = usage.get("prompt_tokens", 0)
+        out = usage.get("completion_tokens", 0)
+        total_in += inp
+        total_out += out
+        cost_str = ""
+        model_pricing = pricing.get(model_uuid, {})
+        ir = model_pricing.get("input_per_token")
+        or_ = model_pricing.get("output_per_token")
+        if ir is not None and or_ is not None:
+            cost_str = f"${inp * ir + out * or_:.6f}"
+        print(f"{turn:>4}  {inp:>8}  {out:>8}  {cost_str:>12}")
+
+    if turn == 0:
+        print("no usage data recorded (turns pre-date this feature)")
+        return
+
+    total_cost_str = ""
+    model_pricing = pricing.get(model_uuid, {})
+    ir = model_pricing.get("input_per_token")
+    or_ = model_pricing.get("output_per_token")
+    if ir is not None and or_ is not None:
+        total_cost_str = f"${total_in * ir + total_out * or_:.6f}"
+    print(f"{'---':>4}  {'--------':>8}  {'--------':>8}  {'------------':>12}")
+    print(f"{'TOT':>4}  {total_in:>8}  {total_out:>8}  {total_cost_str:>12}")
 
 
 def main():
@@ -325,6 +414,10 @@ def main():
     p_sessions_rm = sessions_sub.add_parser("rm", help="delete a session")
     p_sessions_rm.add_argument("name", help="session name to delete")
     p_sessions_rm.set_defaults(func=cmd_sessions_rm)
+
+    p_sessions_usage = sessions_sub.add_parser("usage", help="show token usage and cost for a session")
+    p_sessions_usage.add_argument("name", help="session name")
+    p_sessions_usage.set_defaults(func=cmd_sessions_usage)
 
     args = parser.parse_args()
     args.func(args)

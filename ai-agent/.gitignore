@@ -1,7 +1,10 @@
 config.json
 state.json
 agents.json
+pricing.json
 .terraform/
 terraform.tfstate
 terraform.tfstate.backup
 *.tfvars
+.planning/
+__pycache__

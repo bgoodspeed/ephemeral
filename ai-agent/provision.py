@@ -17,6 +17,7 @@ import requests
 CONFIG_FILE = "config.json"
 STATE_FILE = "state.json"
 AGENTS_FILE = "agents.json"
+PRICING_FILE = "pricing.json"
 BASE = "https://api.digitalocean.com/v2"
 
 
@@ -67,6 +68,34 @@ class Client:
             return None  # already gone, that's fine
         r.raise_for_status()
         return r.json() if r.content else None
+
+
+def fetch_model_info(do, model_uuid):
+    """Return the model dict for the given UUID, or None."""
+    try:
+        data = do.get("gen-ai/models")
+        for m in data.get("models", []):
+            if m.get("uuid") == model_uuid:
+                return m
+    except Exception as e:
+        print(f"  warning: could not fetch model info: {e}", file=sys.stderr)
+    return None
+
+
+def update_pricing_file(model_uuid, model_name, input_per_token, output_per_token):
+    existing = {}
+    if os.path.exists(PRICING_FILE):
+        with open(PRICING_FILE) as f:
+            existing = json.load(f)
+    existing.setdefault("version", 1)
+    existing.setdefault("models", {})
+    existing["models"][model_uuid] = {
+        "name": model_name,
+        "input_per_token": input_per_token,
+        "output_per_token": output_per_token,
+    }
+    with open(PRICING_FILE, "w") as f:
+        json.dump(existing, f, indent=2)
 
 
 def create(config):
@@ -150,7 +179,25 @@ def create(config):
     save_state(state)
     print(f"  api key {'*' * 8}{api_key[-6:]}")
 
-    # 5. agents.json registry
+    # 5. pricing.json — fetch per-token rates for this model
+    print("fetching model pricing...")
+    model_uuid = config["model_uuid"]
+    model_info = fetch_model_info(do, model_uuid)
+    if model_info:
+        pricing = model_info.get("pricing", {})
+        # DO names this field "per_million" but values are per-token (confirmed against published rates)
+        inp_price = pricing.get("input_price_per_million")
+        out_price = pricing.get("output_price_per_million")
+        model_name = model_info.get("name", model_uuid)
+        if inp_price is not None:
+            update_pricing_file(model_uuid, model_name, inp_price, out_price)
+            print(f"  {model_name}: ${inp_price}/tok in, ${out_price}/tok out → saved to {PRICING_FILE}")
+        else:
+            print(f"  {model_name}: no pricing data in API response")
+    else:
+        print(f"  no model info available for {model_uuid}")
+
+    # 6. agents.json registry
     registry = {
         "version": 1,
         "agents": {
