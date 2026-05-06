@@ -247,7 +247,7 @@ def destroy():
         except requests.HTTPError as e:
             print(f"  warning: {e} — delete the project manually in the DO console")
 
-    for path in [STATE_FILE, AGENTS_FILE]:
+    for path in [STATE_FILE, AGENTS_FILE, PRICING_FILE]:
         if os.path.exists(path):
             os.remove(path)
             print(f"removed {path}")
